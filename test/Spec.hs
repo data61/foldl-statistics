@@ -1,7 +1,8 @@
 
 import Test.Tasty
 -- import Test.Tasty.SmallCheck as SC
-import Test.Tasty.QuickCheck as QC
+import qualified Test.Tasty.QuickCheck as QC
+import           Test.Tasty.QuickCheck ((==>))
 
 import qualified Control.Foldl as F
 import Control.Foldl.Statistics hiding (length)
@@ -10,6 +11,7 @@ import qualified Data.Vector.Unboxed as U
 import Test.QuickCheck.Instances
 
 import qualified Statistics.Sample as S
+import Statistics.Function (within)
 
 
 toV :: [Double] -> U.Vector Double
@@ -17,7 +19,7 @@ toV = U.fromList
 
 main :: IO ()
 main = defaultMain $
-    testGroup "Match Statistics.Sample"
+    testGroup "Results match Statistics.Sample"
         [ testGroup "Without pre-computed mean"
             [ testGroup "Statistics of location"
                 [ QC.testProperty "mean" $ \lst -> not (Prelude.null lst) ==>
@@ -78,6 +80,16 @@ main = defaultMain $
                 , QC.testProperty "centralMoment 7" $ \lst -> length lst > 7 ==>
                     let m = F.fold mean lst
                     in F.fold (centralMoment 7 m) lst == S.centralMoment 7 (toV lst)
+                , QC.testProperty "centralMoments 4 9" $ \lst -> length lst > 7 ==>
+                    let m = F.fold mean lst
+                    in F.fold (centralMoments 4 9 m) lst == S.centralMoments 4 9 (toV lst)
+                -- Cannot test this because we do not have an equivalent implementation
+                -- from the statistics package.
+                -- , QC.testProperty "centralMoments' 4 9" $ \lst -> length lst > 7 ==>
+                --     let m = F.fold mean lst
+                --         (f1,f2) = (F.fold (centralMoments' 4 9 m) lst)
+                --         (s1,s2) = (S.centralMoments 4 9 (toV lst))
+                --     in within 3 f1 s1 && within 3 f2 s2
                 ]
             ]
         ]
