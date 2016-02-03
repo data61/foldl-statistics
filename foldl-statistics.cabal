@@ -46,4 +46,4 @@ test-suite foldl-statistics-test
 
 source-repository head
   type:     git
-  location: https://github.com/Axman6/foldl-statistics
+  location: https://github.com/NICTA/foldl-statistics
