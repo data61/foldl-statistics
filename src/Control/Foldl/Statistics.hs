@@ -32,6 +32,7 @@ module Control.Foldl.Statistics (
     -- ** Functions over central moments
     , centralMoment
     , centralMoments
+    , centralMoments'
     , skewness
     , kurtosis
 
@@ -170,25 +171,26 @@ centralMoments :: Int -> Int -> Double -> Fold Double (Double, Double)
 centralMoments a b m
     | a < 2 || b < 2 = (,) <$> centralMoment a m <*> centralMoment b m
     | otherwise      = Fold step (V1 0 0 0) final
-  where step (V1 i j n) x = V1 (i + d^^^a) (j + d^^^b) (n+1)
+  where final (V1 i j n)   = (i / fromIntegral n , j / fromIntegral n)
+        step  (V1 i j n) x = V1 (i + d^^^a) (j + d^^^b) (n+1)
             where d  = x - m
-        final (V1 i j n) = (i / fromIntegral n , j / fromIntegral n)
 
 
 -- | Compute the /k/th and /j/th central moments of a sample.
 --
 -- This fold requires the mean of the data to be known.
 --
--- For samples containing many values very close to the mean, this
--- function is subject to inaccuracy due to catastrophic cancellation.
+-- This variation of `centralMoments' uses Kahan-Babuška-Neumaier
+-- summation to attempt to improve the accuracy of results, which may
+-- make computation slower.
 {-# INLINE centralMoments' #-}
 centralMoments' :: Int -> Int -> Double -> Fold Double (Double, Double)
 centralMoments' a b m
     | a < 2 || b < 2 = (,) <$> centralMoment a m <*> centralMoment b m
     | otherwise      = Fold step (V1S zero zero 0) final
-  where step (V1S i j n) x = V1S (add i $ d^^^a) (add j $ d^^^b) (n+1)
+  where final (V1S i j n)   = (kbn i / fromIntegral n , kbn j / fromIntegral n)
+        step  (V1S i j n) x = V1S (add i $ d^^^a) (add j $ d^^^b) (n+1)
             where d  = x - m
-        final (V1S i j n) = (kbn i / fromIntegral n , kbn j / fromIntegral n)
 
 -- | Compute the skewness of a sample. This is a measure of the
 -- asymmetry of its distribution.
