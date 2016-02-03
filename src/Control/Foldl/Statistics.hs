@@ -1,16 +1,12 @@
--- Copyright 2016 National ICT Australia
-
--- Licensed under the Apache License, Version 2.0 (the "License");
--- you may not use this file except in compliance with the License.
--- You may obtain a copy of the License at
-
---     http://www.apache.org/licenses/LICENSE-2.0
-
--- Unless required by applicable law or agreed to in writing, software
--- distributed under the License is distributed on an "AS IS" BASIS,
--- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
--- See the License for the specific language governing permissions and
--- limitations under the License.
+-- |
+-- Module    : Control.Foldl.Statistics
+-- Copyright : (c) 2011 Bryan O'Sullivan, 2016 National ICT Australia
+-- License   : BSD3
+--
+-- Maintainer  : alex.mason@nicta.com.au
+-- Stability   : experimental
+-- Portability : portable
+--
 
 module Control.Foldl.Statistics (
     -- * Introduction
@@ -60,15 +56,17 @@ import Data.Profunctor
 
 import Numeric.Sum
 
-data T  = T  {-# UNPACK #-}!Double {-# UNPACK #-}!Int
-data T1 = T1 {-# UNPACK #-}!Int    {-# UNPACK #-}!Double {-# UNPACK #-}!Double
-data V  = V  {-# UNPACK #-}!Double {-# UNPACK #-}!Double
-data V1 = V1 {-# UNPACK #-}!Double {-# UNPACK #-}!Double {-# UNPACK #-}!Int
+data T   = T   {-# UNPACK #-}!Double {-# UNPACK #-}!Int
+data T1  = T1  {-# UNPACK #-}!Int    {-# UNPACK #-}!Double {-# UNPACK #-}!Double
+data V   = V   {-# UNPACK #-}!Double {-# UNPACK #-}!Double
+data V1  = V1  {-# UNPACK #-}!Double {-# UNPACK #-}!Double {-# UNPACK #-}!Int
 data V1S = V1S {-# UNPACK #-}!KBNSum {-# UNPACK #-}!KBNSum {-# UNPACK #-}!Int
 
 
 -- $intro
--- Statistical functions taken from the "Statistics.Sample" module of the
+-- Statistical functions from the
+-- <https://hackage.haskell.org/package/statistics/docs/Statistics-Sample.html Statistics.Sample>
+-- module of the
 -- <https://hackage.haskell.org/package/statistics statistics> package by
 -- Brian O'Sullivan, implemented as `Control.Foldl.Fold's from the
 -- <https://hackage.haskell.org/package/foldl foldl> package.
