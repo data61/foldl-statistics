@@ -57,6 +57,7 @@ import Data.Profunctor
 import Numeric.Sum
 
 data T   = T   {-# UNPACK #-}!Double {-# UNPACK #-}!Int
+data TS  = TS  {-# UNPACK #-}!KBNSum {-# UNPACK #-}!Int
 data T1  = T1  {-# UNPACK #-}!Int    {-# UNPACK #-}!Double {-# UNPACK #-}!Double
 data V   = V   {-# UNPACK #-}!Double {-# UNPACK #-}!Double
 data V1  = V1  {-# UNPACK #-}!Double {-# UNPACK #-}!Double {-# UNPACK #-}!Int
@@ -97,9 +98,10 @@ range = (\(Just lo) (Just hi) -> hi - lo)
 -- values are very large.
 {-# INLINE mean #-}
 mean :: Fold Double Double
-mean = (\s n -> s / fromIntegral (n::Int))
-        <$> sum'
-        <*> F.length
+mean = Fold step (TS zero 0) final where
+    step  (TS s n) x = TS (add s x) (n+1)
+    final (TS s n)   = kbn s / fromIntegral n
+
 
 -- | Arithmetic mean.  This uses Welford's algorithm to provide
 -- numerical stability, using a single pass over the sample data.
@@ -154,9 +156,10 @@ centralMoment a m
     | a < 0  = error "Statistics.Sample.centralMoment: negative input"
     | a == 0 = 1
     | a == 1 = 0
-    | otherwise = lmap go sum' / (fromIntegral <$> F.length)
-  where
-    go x = (x-m) ^^^ a
+    | otherwise = Fold step (TS zero 0) final where
+        step  (TS s n) x = TS (add s $ go x) (n+1)
+        final (TS s n)   = kbn s / fromIntegral n
+        go x = (x-m) ^^^ a
 
 -- | Compute the /k/th and /j/th central moments of a sample.
 --
@@ -243,9 +246,6 @@ kurtosis m = (\(c4,c2) -> c4 / (c2 * c2) - 3) <$> centralMoments 4 2 m
 -- These functions use the compensated summation algorithm of Chan et
 -- al. for numerical robustness, but require two passes over the
 -- sample data as a result.
---
--- Because of the need for two passes, these functions are /not/
--- subject to stream fusion.
 
 
 -- Multiply a number by itself.
@@ -254,26 +254,25 @@ square :: Double -> Double
 square x = x * x
 
 {-# INLINE robustSumVar #-}
-robustSumVar :: Double -> Fold Double Double
-robustSumVar m = lmap (square . subtract m) sum'
+robustSumVar :: Double -> Fold Double TS
+robustSumVar m = Fold step (TS zero 0) id where
+    step  (TS s n) x = TS (add s . square . subtract m $ x) (n+1)
 
 -- | Maximum likelihood estimate of a sample's variance.  Also known
 -- as the population variance, where the denominator is /n/.
 {-# INLINE variance #-}
 variance :: Double -> Fold Double Double
 variance m =
-    (\sv n -> if n > 1 then sv / fromIntegral n else 0)
+    (\(TS sv n) -> if n > 1 then kbn sv / fromIntegral n else 0)
     <$> robustSumVar m
-    <*> F.length
 
 -- | Unbiased estimate of a sample's variance.  Also known as the
 -- sample variance, where the denominator is /n/-1.
 {-# INLINE varianceUnbiased #-}
 varianceUnbiased :: Double -> Fold Double Double
 varianceUnbiased m =
-    (\sv n -> if n > 1 then sv / fromIntegral (n-1) else 0)
+    (\(TS sv n) -> if n > 1 then kbn sv / fromIntegral (n-1) else 0)
     <$> robustSumVar m
-    <*> F.length
 
 
 -- | Standard deviation.  This is simply the square root of the
@@ -369,4 +368,16 @@ fastStdDev = sqrt fastVariance
 (^^^) :: Double -> Int -> Double
 x ^^^ 1 = x
 x ^^^ n = x * (x ^^^ (n-1))
-{-# INLINE (^^^) #-}
+{-# INLINE[2] (^^^) #-}
+{-# RULES
+"pow 2"  forall x. x ^^^ 2  = x * x
+"pow 3"  forall x. x ^^^ 3  = x * x * x
+"pow 4"  forall x. x ^^^ 4  = x * x * x * x
+"pow 5"  forall x. x ^^^ 5  = x * x * x * x * x
+"pow 6"  forall x. x ^^^ 6  = x * x * x * x * x * x
+"pow 7"  forall x. x ^^^ 7  = x * x * x * x * x * x * x
+"pow 8"  forall x. x ^^^ 8  = x * x * x * x * x * x * x * x
+"pow 9"  forall x. x ^^^ 9  = x * x * x * x * x * x * x * x * x
+"pow 10" forall x. x ^^^ 10 = x * x * x * x * x * x * x * x * x * x
+
+ #-}
