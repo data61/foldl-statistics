@@ -50,14 +50,15 @@ module Control.Foldl.Statistics (
 
     -- * References
     -- $references
-    , module F
+    , module Control.Foldl
 
     ) where
 
 import Control.Foldl as F
+import qualified Control.Foldl
 import Data.Profunctor
 
-import Numeric.Sum
+import Numeric.Sum (KBNSum, kbn, add, zero)
 
 data T   = T   {-# UNPACK #-}!Double {-# UNPACK #-}!Int
 data TS  = TS  {-# UNPACK #-}!KBNSum {-# UNPACK #-}!Int
