@@ -72,7 +72,7 @@ data V1S = V1S {-# UNPACK #-}!KBNSum {-# UNPACK #-}!KBNSum {-# UNPACK #-}!Int
 -- <https://hackage.haskell.org/package/statistics/docs/Statistics-Sample.html Statistics.Sample>
 -- module of the
 -- <https://hackage.haskell.org/package/statistics statistics> package by
--- Brian O'Sullivan, implemented as `Control.Foldl.Fold's from the
+-- Bryan O'Sullivan, implemented as `Control.Foldl.Fold's from the
 -- <https://hackage.haskell.org/package/foldl foldl> package.
 --
 -- This allows many statistics to be computed concurrently with at most
@@ -88,7 +88,7 @@ sum' = Fold (add :: KBNSum -> Double -> KBNSum)
             kbn
 
 
--- | Range. The difference between the largest and smallest
+-- | The difference between the largest and smallest
 -- elements of a sample.
 {-# INLINE range #-}
 range :: Fold Double Double
@@ -132,8 +132,7 @@ meanWeighted = Fold step (V 0 0) final
                    | otherwise = m + xw * (x - m) / w'
                 w' = w + xw
 
--- | Harmonic mean.  This algorithm performs a single pass over
--- the sample.
+-- | Harmonic mean.
 {-# INLINE harmonicMean #-}
 harmonicMean :: Fold Double Double
 harmonicMean = Fold step (T 0 0) final
@@ -243,6 +242,9 @@ kurtosis m = (\(c4,c2) -> c4 / (c2 * c2) - 3) <$> centralMoments 4 2 m
 --
 -- The variance&#8212;and hence the standard deviation&#8212;of a
 -- sample of fewer than two elements are both defined to be zero.
+--
+-- Many of these Folds take the mean as an argument for constructing
+-- the variance, and as such require two passes over the data.
 
 -- $robust
 --
