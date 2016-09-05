@@ -45,6 +45,9 @@ module Control.Foldl.Statistics (
     , fastVarianceUnbiased
     , fastStdDev
 
+    -- $correlation
+    , correlation
+
     -- * References
     -- $references
     , module F
@@ -341,6 +344,15 @@ fastVarianceUnbiased = final <$> fastVar
 {-# INLINE fastStdDev #-}
 fastStdDev :: Fold Double Double
 fastStdDev = sqrt fastVariance
+
+
+-- $correlation
+--
+--
+correlation :: (Double, Double) -> (Double, Double) -> Fold (Double,Double) Double
+correlation (m1,m2) (s1,s2) = Fold step (TS zero 0) final where
+    step  (TS s n) (x1,x2) = TS (add s $ ((x1-m1)/s1) * ((x2-m2)/s2)) (n+1)
+    final (TS s n)         = kbn s / fromIntegral (n-1)
 
 
 -- $references

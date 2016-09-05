@@ -13,6 +13,8 @@ import Test.QuickCheck.Instances
 import qualified Statistics.Sample as S
 import Statistics.Function (within)
 
+import Data.Profunctor
+
 
 toV :: [Double] -> U.Vector Double
 toV = U.fromList
@@ -98,5 +100,33 @@ main = defaultMain $
                 --         (s1,s2) = (S.centralMoments 4 9 vec)
                 --     in within 3 f1 s1 && within 3 f2 s2
                 ]
+            , testGroup "Correlation"
+                [ onVec2 "correlation between [-1,1]" $ \vec ->
+                    U.length vec > 2 ==>
+                    let m1 = F.fold mean (U.toList $ U.map fst vec)
+                        m2 = F.fold mean (U.toList $ U.map snd vec)
+                        s1 = F.fold (stdDev m1) (U.toList $ U.map fst vec)
+                        s2 = F.fold (stdDev m2) (U.toList $ U.map snd vec)
+                    in between (-1,1) $
+                        F.fold (correlation (m1,m2) (s1,s2)) (U.toList vec)
+                , onVec2 "correlation between [-1,1] fastStdDev" $ \vec ->
+
+                    let (m1,m2) = F.fold ((,)
+                                          <$> lmap fst mean
+                                          <*> lmap snd mean)
+                                        (U.toList vec)
+                        (s1,s2) = F.fold ((,)
+                                          <$> lmap fst (stdDev m1)
+                                          <*> lmap snd (stdDev m2))
+                                        (U.toList vec)
+                        corr = F.fold (correlation (m1,m2) (s1,s2)) (U.toList vec)
+                    in U.length vec > 2 && s2 /= 0.0 && s2 /= 0.0 ==>
+                        QC.counterexample ("Correlation: " ++ show corr ++ " Stats: " ++ show (m1,m2,s1,s2)) $
+                            between (-1,1) corr || isNaN corr
+
+                ]
             ]
         ]
+
+between :: (Double,Double) -> Double -> Bool
+between (lo,hi) = \x -> lo <= x && x <= hi
