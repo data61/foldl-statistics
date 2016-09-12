@@ -1,7 +1,7 @@
 name:                foldl-statistics
 version:             0.1.0.0
 synopsis:            Statistical functions from the statistics package implemented as
-                     Folds from the foldl package
+                     Folds.
 description:         The use of this package allows statistics to be computed using at most two
                      passes over the input data, one to compute a mean and one to compute a further
                      statistic such as variance and /n/th central moments. All algorithms are the
