@@ -44,8 +44,12 @@ module Control.Foldl.Statistics (
     , fastVariance
     , fastVarianceUnbiased
     , fastStdDev
+    , fastLMVSK
+    , Stats4(..)
+    , fastLinearReg
+    , LinRegResult(..)
 
-    -- $correlation
+
     , correlation
 
     -- * References
@@ -349,9 +353,117 @@ fastStdDev :: Fold Double Double
 fastStdDev = sqrt fastVariance
 
 
--- $correlation
+
+-- | When returned by `fastLMVSK`, contains the count, mean,
+--  variance, skewness and kurtosis of a series of samples.
 --
+-- _Since: 0.1.1.0_
+data Stats4  = Stats4
+  { stats4Count    :: {-# UNPACK #-}!Int
+  , stats4Mean     :: {-# UNPACK #-}!Double
+  , stats4Variance :: {-# UNPACK #-}!Double
+  , stats4Skewness :: {-# UNPACK #-}!Double
+  , stats4Kurtosis :: {-# UNPACK #-}!Double
+  } deriving (Show, Eq)
+
+-- | Efficiently compute the
+-- __length, mean, variance, skewness and kurtosis__ with a single pass.
 --
+-- _Since: 0.1.1.0_
+{-# INLINE fastLMVSK #-}
+fastLMVSK :: Fold Double Stats4
+fastLMVSK = finalStats4 <$> foldStats4
+
+
+{-# INLINE stats40 #-}
+stats40 = Stats4 0 0 0 0 0
+
+-- This performs the grunt work of the fastLMVSK function above.
+-- Note: The Stats4 returned by this doesn't contain the actual statistics
+-- you're likely after, you must apply `finalStats4' to compute those.
+--
+-- See details on John Cook's article in the references below for
+-- details.
+{-# INLINE foldStats4 #-}
+foldStats4 :: Fold Double Stats4
+foldStats4 = Fold stepStats4 stats40 id
+
+{-# INLINE stepStats4 #-}
+stepStats4 :: Stats4 -> Double -> Stats4
+stepStats4 (Stats4 n1 m1 m2 m3 m4) x = Stats4 n' m1' m2' m3' m4' where
+  n' = n1+1
+  delta = x - m1
+  delta_n = delta / fromIntegral n'
+  delta_n2 = delta_n * delta_n
+  term1 = delta * delta_n * fromIntegral n1
+  m1' = m1 + delta_n
+  m4' = m4 + term1 * delta_n2 * fromIntegral (n'*n' - 3*n' + 3) + 6 * delta_n2 * m2 - 4 * delta_n * m3
+  m3' = m3 + term1 * delta_n  * fromIntegral (n' - 2)           - 3 * delta_n  * m2
+  m2' = m2 + term1
+finalStats4 :: Stats4 -> Stats4
+finalStats4 (Stats4 n m1 m2 m3 m4) = Stats4 n m1 m2' m3' m4' where
+  nd = fromIntegral n
+  m2' = m2 / (nd-1)
+  m3' = sqrt nd * m3 * (m2 ** (-1.5))
+  m4' = nd*m4 / (m2*m2) - 3.0
+
+-- | When returned by `fastLinearReg`, contains the count,
+--   slope, intercept and correlation of combining @(x,y)@ pairs.
+--
+-- _Since: 0.1.1.0_
+data LinRegResult = LinRegResult
+  {lrrCount       :: {-# UNPACK #-}!Int
+  ,lrrSlope       :: {-# UNPACK #-}!Double
+  ,lrrIntercept   :: {-# UNPACK #-}!Double
+  ,lrrCorrelation :: {-# UNPACK #-}!Double
+  } deriving (Show, Eq)
+
+-- | Computes the __count, slope, (Y) intercept and correlation__ of @(x,y)@
+--   pairs.
+--
+-- >>> F.fold fastLinearReg $ map (\x -> (x,3*x+7)) [1..100]
+-- LinRegResult {lrrCount = 100, lrrSlope = 3.0,
+--               lrrIntercept = 7.0, lrrCorrelation = 1.0}
+--
+-- >>> F.fold fastLinearReg $ map (\x -> (x,0.005*x*x+3*x+7)) [1..100]
+-- LinRegResult {
+--    lrrCount = 100,
+--    lrrSlope = 3.5049999999999994,
+--    lrrIntercept = -1.5849999999999795,
+--    lrrCorrelation = 0.9993226275740273}
+--
+-- _Since: 0.1.1.0_
+{-# INLINE fastLinearReg #-}
+fastLinearReg :: Fold (Double,Double) LinRegResult
+fastLinearReg = Fold step (V2 0 (V 0 0) (V 0 0) 0) final where
+  step (V2 n v1@(V xMean xVar) v2@(V yMean _) s_xy) (x,y) = V2 (n+1) v1' v2' s_xy' where
+    nd = fromIntegral n
+    nd1 = fromIntegral (n+1)
+    s_xy' = s_xy + (xMean - x)*(yMean - y)*nd/nd1
+    v1' = stepV v1 n x
+    v2' = stepV v2 n y
+  final (V2 n v1@(V xMean xVar) v2@(V yMean yVar)  s_xy) = LinRegResult n slope intercept correlation where
+    ndm1 = fromIntegral (n-1)
+    slope = s_xy / xVar
+    intercept = yMean - slope*xMean
+    t = sqrt (xVar/ndm1) * sqrt (yVar/ndm1); -- stddev x * stddev y
+    correlation = s_xy / (ndm1 * t)
+
+data V2 = V2 {-# UNPACK #-}!Int {-# UNPACK #-}!V {-# UNPACK #-}!V {-# UNPACK #-}!Double
+
+{-# INLINE stepV #-}
+stepV :: V -> Int -> Double -> V
+stepV (V m1 m2) n1 x = V m1' m2' where
+  delta = x - m1
+  delta_n = delta / fromIntegral (n1+1)
+  term1 = delta * delta_n * fromIntegral n1
+  m1' = m1 + delta_n
+  m2' = m2 + term1
+
+
+
+-- | Given the mean and standard deviation of two distributions, computes
+--   the correlation between them.
 correlation :: (Double, Double) -> (Double, Double) -> Fold (Double,Double) Double
 correlation (m1,m2) (s1,s2) = Fold step (TS zero 0) final where
     step  (TS s n) (x1,x2) = TS (add s $ ((x1-m1)/s1) * ((x2-m2)/s2)) (n+1)
@@ -376,6 +488,9 @@ correlation (m1,m2) (s1,s2) = Fold step (TS zero 0) final where
 -- * West, D.H.D. (1979) Updating mean and variance estimates: an
 --   improved method. /Communications of the ACM/
 --   22(9):532&#8211;535. <http://doi.acm.org/10.1145/359146.359153>
+--
+-- * John D. Cook. Computing skewness and kurtosis in one pass
+--   <http://www.johndcook.com/blog/skewness_kurtosis/>
 
 
 
