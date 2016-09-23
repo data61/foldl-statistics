@@ -372,6 +372,48 @@ data LMVSK  = LMVSK
 
 newtype LMVSKState = LMVSKState LMVSK
 
+instance Monoid LMVSKState where
+  {-# INLINE mempty #-}
+  mempty = LMVSKState lmvsk0
+  {-# INLINE mappend #-}
+  mappend = (<>)
+
+instance Semigroup LMVSKState where
+  {-# INLINE (<>) #-}
+  (LMVSKState (LMVSK an am1 am2 am3 am4)) <> (LMVSKState (LMVSK bn bm1 bm2 bm3 bm4))
+    = LMVSKState (LMVSK n m1 m2 m3 m4) where
+    fi :: Int -> Double
+    fi = fromIntegral
+    -- combined.n = a.n + b.n;
+    n      = an+bn
+    n2     = n*n
+    nd     = fi n
+    and    = fi an
+    bnd    = fi bn
+    -- delta = b.M1 - a.M1;
+    delta  =    bm1 - am1
+    -- delta2 = delta*delta;
+    delta2 =    delta*delta
+    -- delta3 = delta*delta2;
+    delta3 =    delta*delta2
+    -- delta4 = delta2*delta2;
+    delta4 =    delta2*delta2
+    -- combined.M1 = (a.n*a.M1 + b.n*b.M1) / combined.n;
+    m1     =         (and*am1  + bnd*bm1 ) / nd
+    -- combined.M2 = a.M2 + b.M2 + delta2*a.n*b.n / combined.n;
+    m2     =          am2 + bm2  + delta2*and*bnd / nd
+    -- combined.M3 = a.M3 + b.M3 + delta3*a.n*b.n*   (a.n - b.n)/(combined.n*combined.n);
+    m3     =         am3  + bm3  + delta3*and*bnd* fi( an - bn )/ fi n2
+    -- combined.M3 += 3.0*delta * (a.n*b.M2 - b.n*a.M2) / combined.n;
+           +          3.0*delta * (and*bm2  - bnd*am2 ) / nd
+    --
+    -- combined.M4 = a.M4 + b.M4 + delta4*a.n*b.n * (a.n*a.n - a.n*b.n + b.n*b.n) /(combined.n*combined.n*combined.n);
+    m4     =         am4  + bm4  + delta4*and*bnd *fi(an*an  -  an*bn  +  bn*bn ) / fi (n*n*n)
+    -- combined.M4 += 6.0*delta2 * (a.n*a.n*b.M2 + b.n*b.n*a.M2)/(combined.n*combined.n) +
+           +          6.0*delta2 * (and*and*bm2  + bnd*bnd*am2) / fi n2
+    --               4.0*delta*(a.n*b.M3 - b.n*a.M3) / combined.n;
+           +         4.0*delta*(and*bm3  - bnd*am3) / nd
+
 -- | Efficiently compute the
 -- __length, mean, variance, skewness and kurtosis__ with a single pass.
 --
