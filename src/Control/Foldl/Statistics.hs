@@ -45,7 +45,10 @@ module Control.Foldl.Statistics (
     , fastVarianceUnbiased
     , fastStdDev
     , fastLMVSK
-    , Stats4(..)
+    , LMVSK(..)
+    , LMVSKState
+    , foldLMVSKState
+    , getLMVSK
     , fastLinearReg
     , LinRegResult(..)
 
@@ -61,6 +64,7 @@ module Control.Foldl.Statistics (
 import Control.Foldl as F
 import qualified Control.Foldl
 import Data.Profunctor
+import Data.Semigroup
 
 import Numeric.Sum (KBNSum, kbn, add, zero)
 
@@ -357,60 +361,83 @@ fastStdDev = sqrt fastVariance
 -- | When returned by `fastLMVSK`, contains the count, mean,
 --  variance, skewness and kurtosis of a series of samples.
 --
--- _Since: 0.1.1.0_
-data Stats4  = Stats4
-  { stats4Count    :: {-# UNPACK #-}!Int
-  , stats4Mean     :: {-# UNPACK #-}!Double
-  , stats4Variance :: {-# UNPACK #-}!Double
-  , stats4Skewness :: {-# UNPACK #-}!Double
-  , stats4Kurtosis :: {-# UNPACK #-}!Double
+-- /Since: 0.1.1.0/
+data LMVSK  = LMVSK
+  { lmvskCount    :: {-# UNPACK #-}!Int
+  , lmvskMean     :: {-# UNPACK #-}!Double
+  , lmvskVariance :: {-# UNPACK #-}!Double
+  , lmvskSkewness :: {-# UNPACK #-}!Double
+  , lmvskKurtosis :: {-# UNPACK #-}!Double
   } deriving (Show, Eq)
+
+newtype LMVSKState = LMVSKState LMVSK
 
 -- | Efficiently compute the
 -- __length, mean, variance, skewness and kurtosis__ with a single pass.
 --
--- _Since: 0.1.1.0_
+-- /Since: 0.1.1.0/
 {-# INLINE fastLMVSK #-}
-fastLMVSK :: Fold Double Stats4
-fastLMVSK = finalStats4 <$> foldStats4
+fastLMVSK :: Fold Double LMVSK
+fastLMVSK = getLMVSK <$> foldLMVSKState
 
 
-{-# INLINE stats40 #-}
-stats40 = Stats4 0 0 0 0 0
+{-# INLINE lmvsk0 #-}
+lmvsk0 = LMVSK 0 0 0 0 0
 
--- This performs the grunt work of the fastLMVSK function above.
--- Note: The Stats4 returned by this doesn't contain the actual statistics
--- you're likely after, you must apply `finalStats4' to compute those.
+-- | Performs the heavy lifting of fastLMVSK. This is exposed
+--   because the internal `LMVSKState` is monoidal, allowing you
+--   to run these statistics in parallel over datasets which are
+--   split and then combine the results.
 --
--- See details on John Cook's article in the references below for
--- details.
-{-# INLINE foldStats4 #-}
-foldStats4 :: Fold Double Stats4
-foldStats4 = Fold stepStats4 stats40 id
+-- /Since: 0.1.2.0/
+{-# INLINE foldLMVSKState #-}
+foldLMVSKState :: Fold Double LMVSKState
+foldLMVSKState = Fold stepLMVSKState (LMVSKState lmvsk0) id
 
-{-# INLINE stepStats4 #-}
-stepStats4 :: Stats4 -> Double -> Stats4
-stepStats4 (Stats4 n1 m1 m2 m3 m4) x = Stats4 n' m1' m2' m3' m4' where
-  n' = n1+1
-  delta = x - m1
-  delta_n = delta / fromIntegral n'
-  delta_n2 = delta_n * delta_n
-  term1 = delta * delta_n * fromIntegral n1
+{-# INLINE stepLMVSKState #-}
+stepLMVSKState :: LMVSKState -> Double -> LMVSKState
+stepLMVSKState (LMVSKState (LMVSK n1 m1 m2 m3 m4)) x = LMVSKState $ LMVSK n m1' m2' m3' m4' where
+  fi :: Int -> Double
+  fi = fromIntegral
+  -- long long n1 = n;
+  -- n++;
+  n = n1+1
+  -- delta = x - M1;
+  delta =    x - m1
+  -- delta_n = delta / n;
+  delta_n =    delta / fi n
+  -- delta_n2 = delta_n * delta_n;
+  delta_n2 =    delta_n * delta_n
+  -- term1 = delta * delta_n * n1;
+  term1 =    delta * delta_n * fi n1
+  -- M1 +=   delta_n;
   m1' = m1 + delta_n
-  m4' = m4 + term1 * delta_n2 * fromIntegral (n'*n' - 3*n' + 3) + 6 * delta_n2 * m2 - 4 * delta_n * m3
-  m3' = m3 + term1 * delta_n  * fromIntegral (n' - 2)           - 3 * delta_n  * m2
+  -- M4 +=   term1 * delta_n2 *    (n*n - 3*n + 3) + 6 * delta_n2 * M2 - 4 * delta_n * M3;
+  m4' = m4 + term1 * delta_n2 * fi (n*n - 3*n + 3) + 6 * delta_n2 * m2 - 4 * delta_n * m3
+  -- M3 +=   term1 * delta_n *    (n - 2) - 3 * delta_n * M2;
+  m3' = m3 + term1 * delta_n * fi (n - 2) - 3 * delta_n * m2
+  -- M2 +=  term1;
   m2' = m2 + term1
-finalStats4 :: Stats4 -> Stats4
-finalStats4 (Stats4 n m1 m2 m3 m4) = Stats4 n m1 m2' m3' m4' where
+
+-- | Returns the stats which have been computed in a LMVSKState.
+--
+-- /Since: 0.1.2.0/
+getLMVSK :: LMVSKState -> LMVSK
+getLMVSK (LMVSKState (LMVSK n m1 m2 m3 m4)) = LMVSK n m1 m2' m3' m4' where
   nd = fromIntegral n
+  -- M2/(n-1.0)
   m2' = m2 / (nd-1)
-  m3' = sqrt nd * m3 * (m2 ** (-1.5))
-  m4' = nd*m4 / (m2*m2) - 3.0
+  --    sqrt(double(n)) * M3/ pow(M2, 1.5)
+  m3' = sqrt nd * m3 / (m2 ** 1.5)
+  -- double(n)*M4 / (M2*M2) - 3.0
+  m4' = nd*m4     / (m2*m2) - 3.0
+
+
 
 -- | When returned by `fastLinearReg`, contains the count,
 --   slope, intercept and correlation of combining @(x,y)@ pairs.
 --
--- _Since: 0.1.1.0_
+-- /Since: 0.1.1.0/
 data LinRegResult = LinRegResult
   {lrrCount       :: {-# UNPACK #-}!Int
   ,lrrSlope       :: {-# UNPACK #-}!Double
@@ -432,7 +459,7 @@ data LinRegResult = LinRegResult
 --    lrrIntercept = -1.5849999999999795,
 --    lrrCorrelation = 0.9993226275740273}
 --
--- _Since: 0.1.1.0_
+-- /Since: 0.1.1.0/
 {-# INLINE fastLinearReg #-}
 fastLinearReg :: Fold (Double,Double) LinRegResult
 fastLinearReg = Fold step (V2 0 (V 0 0) (V 0 0) 0) final where
