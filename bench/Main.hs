@@ -12,15 +12,19 @@ import Control.Foldl.Statistics
 
 
 -- Test sample
+{-# NOINLINE sample #-}
 sample :: U.Vector Double
 sample = runST $ flip uniformVector 10000 =<< create
 
+{-# NOINLINE sample2 #-}
 sample2 :: U.Vector (Double,Double)
 sample2 = runST $ flip uniformVector 10000 =<< create
 
+{-# NOINLINE absSample #-}
 absSample = U.map abs sample
 
 -- Weighted test sample
+{-# NOINLINE sampleW #-}
 sampleW :: U.Vector (Double,Double)
 sampleW = U.zip sample (U.reverse sample)
 
@@ -55,7 +59,7 @@ main = defaultMain
         , bench "Statistics.Sample"  $ nf S.geometricMean absSample
         ]
       ]
-    , bgroup "Single-pass functions"
+    , bgroup "Single-pass"
       [ bgroup "fastVariance"
         [ bench "C.F.Statistics"     $ nf (\vec -> F.fold fastVariance (U.toList vec)) sample
         , bench "Statistics.Sample"  $ nf S.fastVariance sample
@@ -77,7 +81,7 @@ main = defaultMain
         ]
       ]
 
-    , bgroup "Functions requiring the mean"
+    , bgroup "requiring the mean"
       [ bgroup "variance"
         [ bench "C.F.Statistics"     $ nf (\vec -> F.fold (variance m) (U.toList vec)) sample
         , bench "C.F.S(comp mean)"   $ nf (\vec -> F.fold (variance (F.fold mean (U.toList vec))) (U.toList vec)) sample
@@ -100,7 +104,7 @@ main = defaultMain
         ]
       ]
 
-    , bgroup "Functions over central moments"
+    , bgroup "over central moments"
       [ bgroup "skewness"
         [ bench "C.F.Statistics"     $ nf (\vec -> F.fold (skewness m) (U.toList vec)) sample
         , bench "C.F.S(comp mean)"   $ nf (\vec -> F.fold (skewness (F.fold mean (U.toList vec))) (U.toList vec)) sample
