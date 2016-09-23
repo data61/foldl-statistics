@@ -45,10 +45,12 @@ module Control.Foldl.Statistics (
     , fastVarianceUnbiased
     , fastStdDev
     , fastLMVSK
+    , fastLMVSKu
     , LMVSK(..)
     , LMVSKState
     , foldLMVSKState
     , getLMVSK
+    , getLMVSKu
     , fastLinearReg
     , LinRegResult(..)
 
@@ -422,6 +424,13 @@ instance Semigroup LMVSKState where
 fastLMVSK :: Fold Double LMVSK
 fastLMVSK = getLMVSK <$> foldLMVSKState
 
+-- | Efficiently compute the
+-- __length, mean, unbiased variance, skewness and kurtosis__ with a single pass.
+--
+-- /Since: 0.1.3.0/
+{-# INLINE fastLMVSKu #-}
+fastLMVSKu :: Fold Double LMVSK
+fastLMVSKu = getLMVSKu <$> foldLMVSKState
 
 {-# INLINE lmvsk0 #-}
 lmvsk0 = LMVSK 0 0 0 0 0
@@ -468,12 +477,25 @@ getLMVSK :: LMVSKState -> LMVSK
 getLMVSK (LMVSKState (LMVSK n m1 m2 m3 m4)) = LMVSK n m1 m2' m3' m4' where
   nd = fromIntegral n
   -- M2/(n-1.0)
-  m2' = m2 / (nd-1)
+  m2' = m2 / nd
   --    sqrt(double(n)) * M3/ pow(M2, 1.5)
   m3' = sqrt nd * m3 / (m2 ** 1.5)
   -- double(n)*M4 / (M2*M2) - 3.0
   m4' = nd*m4     / (m2*m2) - 3.0
 
+-- | Returns the stats which have been computed in a LMVSKState,
+--   with the unbiased variance.
+--
+-- /Since: 0.1.2.0/
+getLMVSKu :: LMVSKState -> LMVSK
+getLMVSKu (LMVSKState (LMVSK n m1 m2 m3 m4)) = LMVSK n m1 m2' m3' m4' where
+  nd = fromIntegral n
+  -- M2/(n-1.0)
+  m2' = m2 / (nd-1)
+  --    sqrt(double(n)) * M3/ pow(M2, 1.5)
+  m3' = sqrt nd * m3 / (m2 ** 1.5)
+  -- double(n)*M4 / (M2*M2) - 3.0
+  m4' = nd*m4     / (m2*m2) - 3.0
 
 
 -- | When returned by `fastLinearReg`, contains the count,

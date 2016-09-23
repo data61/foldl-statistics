@@ -35,7 +35,7 @@ testLMVSK :: Double -> Fold Double LMVSK
 testLMVSK m = LMVSK
   <$> F.length
   <*> mean
-  <*> varianceUnbiased m
+  <*> variance m
   <*> skewness m
   <*> kurtosis m
 

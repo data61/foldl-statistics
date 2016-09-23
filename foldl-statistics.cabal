@@ -1,5 +1,5 @@
 name:                foldl-statistics
-version:             0.1.2.0
+version:             0.1.3.0
 synopsis:            Statistical functions from the statistics package implemented as
                      Folds.
 description:         The use of this package allows statistics to be computed using at most two
