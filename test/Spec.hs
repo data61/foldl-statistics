@@ -15,6 +15,10 @@ import Statistics.Function (within)
 
 import Data.Profunctor
 
+import Data.Function (on)
+
+import Data.Semigroup ((<>))
+
 
 toV :: [Double] -> U.Vector Double
 toV = U.fromList
@@ -25,6 +29,15 @@ onVec str f = QC.testProperty str (f . toV)
 
 onVec2 :: String -> (U.Vector (Double,Double) -> QC.Property) -> TestTree
 onVec2 str f = QC.testProperty str (f . U.fromList)
+
+
+testLMVSK :: Double -> Fold Double LMVSK
+testLMVSK m = LMVSK
+  <$> F.length
+  <*> mean
+  <*> varianceUnbiased m
+  <*> skewness m
+  <*> kurtosis m
 
 main :: IO ()
 main = defaultMain $
@@ -44,13 +57,35 @@ main = defaultMain $
                         in F.fold geometricMean (U.toList vec') == S.geometricMean vec'
                 ]
 
-            , testGroup "Single-pass functions"
-                [ onVec "fastVariance" $ \vec ->
+            , testGroup "Single-pass functions" $
+                let precision = 0.0000000001
+                    cmp prec a b = let
+                      t f = on (withinPCT prec) f a b
+                      in t lmvskMean
+                         && t lmvskVariance
+                         && t lmvskKurtosis
+                         && t lmvskSkewness
+                         && ((==) `on` lmvskCount) a b
+                in [ onVec "fastVariance" $ \vec ->
                     not (U.null vec) ==> F.fold fastVariance (U.toList vec) == S.fastVariance vec
                 , onVec "fastVarianceUnbiased" $ \vec ->
                     not (U.null vec) ==> F.fold fastVarianceUnbiased (U.toList vec) == S.fastVarianceUnbiased vec
                 , onVec "fastStdDev" $ \vec ->
                     not (U.null vec) ==> F.fold fastStdDev (U.toList vec) == S.fastStdDev vec
+                , let
+                  in onVec ("fastLMVSK within " ++ show precision ++ " %") $ \vec ->
+                    U.length vec > 2 ==> let
+                      m         = F.fold mean $ U.toList vec
+                      fast      = F.fold fastLMVSK $ U.toList vec
+                      reference = F.fold (testLMVSK m) $ U.toList vec
+                      in cmp precision fast reference
+                , QC.testProperty "LMVSKSemigroup" $ \v1 v2 ->
+                    U.length v1 > 2 && U.length v2 > 2 && U.sum (mappend v1 v1) /= U.product (mappend v1 v1) ==> let
+                      sep = getLMVSK $ F.fold foldLMVSKState (U.toList v1) <> F.fold foldLMVSKState (U.toList v2)
+                      tog = F.fold fastLMVSK (U.toList v1 ++ U.toList v2)
+                      in cmp precision sep tog
+                        || isNaN (lmvskKurtosis sep)
+                        || isNaN (lmvskKurtosis tog)
                 ]
             ]
 
@@ -130,3 +165,7 @@ main = defaultMain $
 
 between :: (Double,Double) -> Double -> Bool
 between (lo,hi) = \x -> lo <= x && x <= hi
+
+
+withinPCT :: Double -> Double -> Double -> Bool
+withinPCT pct a b = abs (a-b) * 100 / (min `on` abs) a b  < pct
