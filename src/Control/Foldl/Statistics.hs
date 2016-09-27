@@ -51,10 +51,13 @@ module Control.Foldl.Statistics (
     , foldLMVSKState
     , getLMVSK
     , getLMVSKu
+
+    -- ** Linear Regression
     , fastLinearReg
+    , foldLinRegState
+    , getLinRegResult
     , LinRegResult(..)
-
-
+    , LinRegState
     , correlation
 
     -- * References
@@ -503,58 +506,154 @@ getLMVSKu (LMVSKState (LMVSK n m1 m2 m3 m4)) = LMVSK n m1 m2' m3' m4' where
 --
 -- /Since: 0.1.1.0/
 data LinRegResult = LinRegResult
-  {lrrCount       :: {-# UNPACK #-}!Int
-  ,lrrSlope       :: {-# UNPACK #-}!Double
+  {lrrSlope       :: {-# UNPACK #-}!Double
   ,lrrIntercept   :: {-# UNPACK #-}!Double
   ,lrrCorrelation :: {-# UNPACK #-}!Double
+  ,lrrXStats      :: {-# UNPACK #-}!LMVSK
+  ,lrrYStats      :: {-# UNPACK #-}!LMVSK
   } deriving (Show, Eq)
 
--- | Computes the __count, slope, (Y) intercept and correlation__ of @(x,y)@
---   pairs.
+lrrCount :: LinRegResult -> Int
+lrrCount = lmvskCount . lrrXStats
+
+-- | The Monoidal state used to compute linear regression, see `fastLinearReg`.
+--
+-- /Since: 0.1.4.0/
+data LinRegState = LinRegState
+  {-# UNPACK #-}!LMVSKState
+  {-# UNPACK #-}!LMVSKState
+  {-# UNPACK #-}!Double
+
+
+{-
+RunningRegression operator+(const RunningRegression a, const RunningRegression b)
+{
+    RunningRegression combined;
+
+    combined.x_stats = a.x_stats + b.x_stats;
+    combined.y_stats = a.y_stats + b.y_stats;
+    combined.n = a.n + b.n;
+
+    double delta_x = b.x_stats.Mean() - a.x_stats.Mean();
+    double delta_y = b.y_stats.Mean() - a.y_stats.Mean();
+    combined.S_xy = a.S_xy + b.S_xy +
+    double(a.n*b.n)*delta_x*delta_y/double(combined.n);
+
+    return combined;
+}
+-}
+instance Semigroup LinRegState where
+  {-# INLINE (<>) #-}
+  (LinRegState ax@(LMVSKState ax') ay@(LMVSKState ay') a_xy)
+   <> (LinRegState bx@(LMVSKState bx') by@(LMVSKState by') b_xy)
+   = LinRegState x y s_xy where
+    an = lmvskCount ax'
+    bn = lmvskCount bx'
+    x = ax <> bx
+    y = ay <> by
+    delta_x = lmvskMean (getLMVSK bx) - lmvskMean (getLMVSK ax)
+    delta_y = lmvskMean (getLMVSK by) - lmvskMean (getLMVSK ay)
+    s_xy = a_xy+b_xy + fromIntegral (an*bn) * delta_x * delta_y/fromIntegral (an+bn)
+
+
+instance Monoid LinRegState where
+  {-# INLINE mempty #-}
+  mempty = LinRegState mempty mempty 0
+  {-# INLINE mappend #-}
+  mappend = (<>)
+
+
+
+-- | Computes the __slope, (Y) intercept and correlation__ of @(x,y)@
+--   pairs, as well as the `LMVSK` stats for both the x and y series.
 --
 -- >>> F.fold fastLinearReg $ map (\x -> (x,3*x+7)) [1..100]
--- LinRegResult {lrrCount = 100, lrrSlope = 3.0,
---               lrrIntercept = 7.0, lrrCorrelation = 1.0}
+-- LinRegResult
+--   {lrrSlope = 3.0
+--   , lrrIntercept = 7.0
+--   , lrrCorrelation = 100.0
+--   , lrrXStats = LMVSK
+--       {lmvskCount = 100
+--       , lmvskMean = 50.5
+--       , lmvskVariance = 833.25
+--       , lmvskSkewness = 0.0
+--       , lmvskKurtosis = -1.2002400240024003}
+--   , lrrYStats = LMVSK
+--       {lmvskCount = 100
+--       , lmvskMean = 158.5
+--       , lmvskVariance = 7499.25
+--       , lmvskSkewness = 0.0
+--       , lmvskKurtosis = -1.2002400240024003}
+--   }
 --
 -- >>> F.fold fastLinearReg $ map (\x -> (x,0.005*x*x+3*x+7)) [1..100]
--- LinRegResult {
---    lrrCount = 100,
---    lrrSlope = 3.5049999999999994,
---    lrrIntercept = -1.5849999999999795,
---    lrrCorrelation = 0.9993226275740273}
+-- LinRegResult
+--   {lrrSlope = 3.5049999999999994
+--   , lrrIntercept = -1.5849999999999795
+--   , lrrCorrelation = 99.93226275740273
+--   , lrrXStats = LMVSK
+--       {lmvskCount = 100
+--       , lmvskMean = 50.5
+--       , lmvskVariance = 833.25
+--       , lmvskSkewness = 0.0
+--       , lmvskKurtosis = -1.2002400240024003}
+--   , lrrYStats = LMVSK
+--       {lmvskCount = 100
+--       , lmvskMean = 175.4175
+--       , lmvskVariance = 10250.37902625
+--       , lmvskSkewness = 9.862971188165422e-2
+--       , lmvskKurtosis = -1.1923628437011482}
+--   }
 --
 -- /Since: 0.1.1.0/
 {-# INLINE fastLinearReg #-}
 fastLinearReg :: Fold (Double,Double) LinRegResult
-fastLinearReg = Fold step (V2 0 (V 0 0) (V 0 0) 0) final where
-  step (V2 n v1@(V xMean xVar) v2@(V yMean _) s_xy) (x,y) = V2 (n+1) v1' v2' s_xy' where
-    nd = fromIntegral n
-    nd1 = fromIntegral (n+1)
+fastLinearReg = getLinRegResult <$> foldLinRegState
+
+-- | Produces the slope, Y intercept, correlation and LMVSK stats from a
+--   `LinRegState`.
+--
+-- /Since: 0.1.4.0/
+{-# INLINE getLinRegResult #-}
+getLinRegResult :: LinRegState -> LinRegResult
+getLinRegResult (LinRegState vx@(LMVSKState vx') vy@(LMVSKState vy') s_xy) = LinRegResult slope intercept correlation statsx statsy where
+  n                               = lmvskCount vx'
+  ndm1                            = fromIntegral (n-1)
+  -- slope = S_xy / (x_stats.Variance()*(n - 1.0));
+  -- in LMVSKState, 'lmvskVariance' hasn't been divided
+  -- by (n-1), so division not necessary
+  slope                           = s_xy / lmvskVariance vx'
+  intercept                       = yMean - slope*xMean
+  t                               = sqrt xVar * sqrt yVar -- stddev x * stddev y
+  correlation                     = s_xy / (ndm1 * t)
+  -- Need unbiased variance or correlation may be > ±1
+  statsx@(LMVSK _ xMean xVar _ _) = getLMVSKu vx
+  statsy@(LMVSK _ yMean yVar _ _) = getLMVSKu vy
+
+
+-- | Performs the heavy lifting for `fastLinReg`. Exposed because `LinRegState`
+--  is a `Monoid`, allowing statistics to be computed on datasets in parallel
+--  and combined afterwards.
+--
+-- /Since: 0.1.4.0/
+{-# INLINE foldLinRegState #-}
+foldLinRegState :: Fold (Double,Double) LinRegState
+foldLinRegState = Fold step (LinRegState (LMVSKState lmvsk0) (LMVSKState lmvsk0) 0) id where
+  step st@(LinRegState vx@(LMVSKState vx') vy@(LMVSKState vy') s_xy) (x,y) = LinRegState vx2 vy2 s_xy' where
+    n     = lmvskCount vx'
+    nd    = fromIntegral n
+    nd1   = fromIntegral (n+1)
     s_xy' = s_xy + (xMean - x)*(yMean - y)*nd/nd1
-    v1' = stepV v1 n x
-    v2' = stepV v2 n y
-  final (V2 n v1@(V xMean xVar) v2@(V yMean yVar)  s_xy) = LinRegResult n slope intercept correlation where
-    ndm1 = fromIntegral (n-1)
-    slope = s_xy / xVar
-    intercept = yMean - slope*xMean
-    t = sqrt (xVar/ndm1) * sqrt (yVar/ndm1); -- stddev x * stddev y
-    correlation = s_xy / (ndm1 * t)
-
-data V2 = V2 {-# UNPACK #-}!Int {-# UNPACK #-}!V {-# UNPACK #-}!V {-# UNPACK #-}!Double
-
-{-# INLINE stepV #-}
-stepV :: V -> Int -> Double -> V
-stepV (V m1 m2) n1 x = V m1' m2' where
-  delta = x - m1
-  delta_n = delta / fromIntegral (n1+1)
-  term1 = delta * delta_n * fromIntegral n1
-  m1' = m1 + delta_n
-  m2' = m2 + term1
-
+    xMean = lmvskMean (getLMVSK vx)
+    yMean = lmvskMean (getLMVSK vy)
+    vx2   = stepLMVSKState vx x
+    vy2   = stepLMVSKState vy y
 
 
 -- | Given the mean and standard deviation of two distributions, computes
---   the correlation between them.
+--   the correlation between them, given the means and standard deviation
+--   of the @x@ and @y@ series. The results may be more accurate than those
+--   returned by `fastLinearReg`
 correlation :: (Double, Double) -> (Double, Double) -> Fold (Double,Double) Double
 correlation (m1,m2) (s1,s2) = Fold step (TS zero 0) final where
     step  (TS s n) (x1,x2) = TS (add s $ ((x1-m1)/s1) * ((x2-m2)/s2)) (n+1)
