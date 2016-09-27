@@ -1,3 +1,6 @@
+# 0.1.4.0
+- Added monoidal interface to linear regression
+
 # 0.1.3.0
 - Added unbiased versions of LMVSK functions
 

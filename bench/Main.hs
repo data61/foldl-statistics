@@ -74,11 +74,11 @@ main = defaultMain
         ]
       , bgroup "fastLMVSK"
                        -- T4 is strict in all arguments, so WHNF ok here
-        [bench "C.F.Statistics"      $ whnf (\vec -> F.fold fastLMVSK (U.toList vec)) sample
-        ]
+          [bench "C.F.Statistics"      $ whnf (\vec -> F.fold fastLMVSK (U.toList vec)) sample
+          ]
       , bgroup "fastLinearReg"
-        [bench "fastLinearReg"       $ whnf (\vec -> F.fold fastLinearReg (U.toList vec)) sample2
-        ]
+          [bench "fastLinearReg"       $ whnf (\vec -> F.fold fastLinearReg (U.toList vec)) sample2
+          ]
       ]
 
     , bgroup "requiring the mean"

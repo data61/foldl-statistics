@@ -39,6 +39,17 @@ testLMVSK m = LMVSK
   <*> skewness m
   <*> kurtosis m
 
+
+precision = 0.0000000001
+
+cmpLMVSK prec a b = let
+  t f = on (withinPCT prec) f a b
+  in t lmvskMean
+     && t lmvskVariance
+     && t lmvskKurtosis
+     && t lmvskSkewness
+     && ((==) `on` lmvskCount) a b
+
 main :: IO ()
 main = defaultMain $
     testGroup "Results match Statistics.Sample"
@@ -58,15 +69,7 @@ main = defaultMain $
                 ]
 
             , testGroup "Single-pass functions" $
-                let precision = 0.0000000001
-                    cmp prec a b = let
-                      t f = on (withinPCT prec) f a b
-                      in t lmvskMean
-                         && t lmvskVariance
-                         && t lmvskKurtosis
-                         && t lmvskSkewness
-                         && ((==) `on` lmvskCount) a b
-                in [ onVec "fastVariance" $ \vec ->
+                [ onVec "fastVariance" $ \vec ->
                     not (U.null vec) ==> F.fold fastVariance (U.toList vec) == S.fastVariance vec
                 , onVec "fastVarianceUnbiased" $ \vec ->
                     not (U.null vec) ==> F.fold fastVarianceUnbiased (U.toList vec) == S.fastVarianceUnbiased vec
@@ -78,12 +81,12 @@ main = defaultMain $
                       m         = F.fold mean $ U.toList vec
                       fast      = F.fold fastLMVSK $ U.toList vec
                       reference = F.fold (testLMVSK m) $ U.toList vec
-                      in cmp precision fast reference
+                      in cmpLMVSK precision fast reference
                 , QC.testProperty "LMVSKSemigroup" $ \v1 v2 ->
                     U.length v1 > 2 && U.length v2 > 2 && U.sum (mappend v1 v1) /= U.product (mappend v1 v1) ==> let
                       sep = getLMVSK $ F.fold foldLMVSKState (U.toList v1) <> F.fold foldLMVSKState (U.toList v2)
                       tog = F.fold fastLMVSK (U.toList v1 ++ U.toList v2)
-                      in cmp precision sep tog
+                      in cmpLMVSK precision sep tog
                         || isNaN (lmvskKurtosis sep)
                         || isNaN (lmvskKurtosis tog)
                 ]
@@ -146,19 +149,26 @@ main = defaultMain $
                         F.fold (correlation (m1,m2) (s1,s2)) (U.toList vec)
                 , onVec2 "correlation between [-1,1] fastStdDev" $ \vec ->
 
-                    let (m1,m2) = F.fold ((,)
-                                          <$> lmap fst mean
-                                          <*> lmap snd mean)
+                    let (m1,m2) = F.fold ((,) <$> lmap fst mean <*> lmap snd mean)
                                         (U.toList vec)
-                        (s1,s2) = F.fold ((,)
-                                          <$> lmap fst (stdDev m1)
-                                          <*> lmap snd (stdDev m2))
+                        (s1,s2) = F.fold ((,) <$> lmap fst (stdDev m1) <*> lmap snd (stdDev m2))
                                         (U.toList vec)
                         corr = F.fold (correlation (m1,m2) (s1,s2)) (U.toList vec)
                     in U.length vec > 2 && s2 /= 0.0 && s2 /= 0.0 ==>
                         QC.counterexample ("Correlation: " ++ show corr ++ " Stats: " ++ show (m1,m2,s1,s2)) $
                             between (-1,1) corr || isNaN corr
-
+                , QC.testProperty "LinRegState Semigroup" $ \v1 v2 ->
+                    U.length v1 > 2 && U.length v2 > 2
+                    && U.sum (U.map fst (mappend v1 v1)) /= U.product (U.map fst (mappend v1 v1))
+                    && U.sum (U.map snd (mappend v1 v1)) /= U.product (U.map snd (mappend v1 v1)) ==> let
+                      sep = getLinRegResult $ F.fold foldLinRegState (U.toList v1) <> F.fold foldLinRegState (U.toList v2)
+                      tog = F.fold fastLinearReg (U.toList v1 ++ U.toList v2)
+                      in (cmpLMVSK precision (lrrXStats sep) (lrrXStats tog)
+                         && cmpLMVSK precision (lrrYStats sep) (lrrYStats tog))
+                        || isNaN (lmvskKurtosis (lrrXStats sep))
+                        || isNaN (lmvskKurtosis (lrrYStats sep))
+                        || isNaN (lmvskKurtosis (lrrXStats tog))
+                        || isNaN (lmvskKurtosis (lrrYStats tog))
                 ]
             ]
         ]
