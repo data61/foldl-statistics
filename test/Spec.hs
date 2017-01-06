@@ -25,7 +25,6 @@ import           Data.Function             (on)
 import           Data.Semigroup            ((<>))
 #if !MIN_VERSION_base(4,8,0)
 import           Control.Applicative
-import           Data.Monoid
 #endif
 
 
@@ -96,7 +95,7 @@ main = defaultMain $
                       reference = F.fold (testLMVSK m) $ U.toList vec
                       in cmpLMVSK precision fast reference
                 , QC.testProperty "LMVSKSemigroup" $ \v1 v2 ->
-                    U.length v1 > 2 && U.length v2 > 2 && U.sum (mappend v1 v1) /= U.product (mappend v1 v1) ==> let
+                    U.length v1 > 2 && U.length v2 > 2 && U.sum (v1 <> v2) /= U.product (v1 <> v2) ==> let
                       sep = getLMVSK $ F.fold foldLMVSKState (U.toList v1) <> F.fold foldLMVSKState (U.toList v2)
                       tog = F.fold fastLMVSK (U.toList v1 ++ U.toList v2)
                       in cmpLMVSK precision sep tog
@@ -172,8 +171,8 @@ main = defaultMain $
                             between (-1,1) corr || isNaN corr
                 , QC.testProperty "LinRegState Semigroup" $ \v1 v2 ->
                     U.length v1 > 2 && U.length v2 > 2
-                    && U.sum (U.map fst (mappend v1 v1)) /= U.product (U.map fst (mappend v1 v1))
-                    && U.sum (U.map snd (mappend v1 v1)) /= U.product (U.map snd (mappend v1 v1)) ==> let
+                    && U.sum (U.map fst (v1 <> v2)) /= U.product (U.map fst (v1 <> v2))
+                    && U.sum (U.map snd (v1 <> v2)) /= U.product (U.map snd (v1 <> v2)) ==> let
                       sep = getLinRegResult $ F.fold foldLinRegState (U.toList v1) <> F.fold foldLinRegState (U.toList v2)
                       tog = F.fold fastLinearReg (U.toList v1 ++ U.toList v2)
                       in (cmpLMVSK precision (lrrXStats sep) (lrrXStats tog)
