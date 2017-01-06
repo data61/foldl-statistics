@@ -59,6 +59,7 @@ module Control.Foldl.Statistics (
     , getLinRegResult
     , LinRegResult(..)
     , LinRegState
+    , lrrCount
     , correlation
 
     -- * References
@@ -406,8 +407,8 @@ instance Semigroup LMVSKState where
     n      = an+bn
     n2     = n*n
     nd     = fi n
-    and    = fi an
-    bnd    = fi bn
+    nda    = fi an
+    ndb    = fi bn
     -- delta = b.M1 - a.M1;
     delta  =    bm1 - am1
     -- delta2 = delta*delta;
@@ -417,20 +418,20 @@ instance Semigroup LMVSKState where
     -- delta4 = delta2*delta2;
     delta4 =    delta2*delta2
     -- combined.M1 = (a.n*a.M1 + b.n*b.M1) / combined.n;
-    m1     =         (and*am1  + bnd*bm1 ) / nd
+    m1     =         (nda*am1  + ndb*bm1 ) / nd
     -- combined.M2 = a.M2 + b.M2 + delta2*a.n*b.n / combined.n;
-    m2     =          am2 + bm2  + delta2*and*bnd / nd
+    m2     =          am2 + bm2  + delta2*nda*ndb / nd
     -- combined.M3 = a.M3 + b.M3 + delta3*a.n*b.n*   (a.n - b.n)/(combined.n*combined.n);
-    m3     =         am3  + bm3  + delta3*and*bnd* fi( an - bn )/ fi n2
+    m3     =         am3  + bm3  + delta3*nda*ndb* fi( an - bn )/ fi n2
     -- combined.M3 += 3.0*delta * (a.n*b.M2 - b.n*a.M2) / combined.n;
-           +          3.0*delta * (and*bm2  - bnd*am2 ) / nd
+           +          3.0*delta * (nda*bm2  - ndb*am2 ) / nd
     --
     -- combined.M4 = a.M4 + b.M4 + delta4*a.n*b.n * (a.n*a.n - a.n*b.n + b.n*b.n) /(combined.n*combined.n*combined.n);
-    m4     =         am4  + bm4  + delta4*and*bnd *fi(an*an  -  an*bn  +  bn*bn ) / fi (n*n*n)
+    m4     =         am4  + bm4  + delta4*nda*ndb *fi(an*an  -  an*bn  +  bn*bn ) / fi (n*n*n)
     -- combined.M4 += 6.0*delta2 * (a.n*a.n*b.M2 + b.n*b.n*a.M2)/(combined.n*combined.n) +
-           +          6.0*delta2 * (and*and*bm2  + bnd*bnd*am2) / fi n2
+           +          6.0*delta2 * (nda*nda*bm2  + ndb*ndb*am2) / fi n2
     --               4.0*delta*(a.n*b.M3 - b.n*a.M3) / combined.n;
-           +         4.0*delta*(and*bm3  - bnd*am3) / nd
+           +         4.0*delta*(nda*bm3  - ndb*am3) / nd
 
 -- | Efficiently compute the
 -- __length, mean, variance, skewness and kurtosis__ with a single pass.
@@ -449,6 +450,7 @@ fastLMVSKu :: Fold Double LMVSK
 fastLMVSKu = getLMVSKu <$> foldLMVSKState
 
 {-# INLINE lmvsk0 #-}
+lmvsk0 :: LMVSK
 lmvsk0 = LMVSK 0 0 0 0 0
 
 -- | Performs the heavy lifting of fastLMVSK. This is exposed
@@ -526,6 +528,8 @@ data LinRegResult = LinRegResult
   ,lrrYStats      :: {-# UNPACK #-}!LMVSK
   } deriving (Show, Eq)
 
+-- | The number of elements which make up this 'LinRegResult'
+-- /Since: 0.1.4.1/
 lrrCount :: LinRegResult -> Int
 lrrCount = lmvskCount . lrrXStats
 
@@ -557,8 +561,8 @@ RunningRegression operator+(const RunningRegression a, const RunningRegression b
 -}
 instance Semigroup LinRegState where
   {-# INLINE (<>) #-}
-  (LinRegState ax@(LMVSKState ax') ay@(LMVSKState ay') a_xy)
-   <> (LinRegState bx@(LMVSKState bx') by@(LMVSKState by') b_xy)
+  (LinRegState     ax@(LMVSKState ax') ay a_xy)
+   <> (LinRegState bx@(LMVSKState bx') by b_xy)
    = LinRegState x y s_xy where
     an = lmvskCount ax'
     bn = lmvskCount bx'
@@ -629,7 +633,7 @@ fastLinearReg = getLinRegResult <$> foldLinRegState
 -- /Since: 0.1.4.0/
 {-# INLINE getLinRegResult #-}
 getLinRegResult :: LinRegState -> LinRegResult
-getLinRegResult (LinRegState vx@(LMVSKState vx') vy@(LMVSKState vy') s_xy) = LinRegResult slope intercept correlation statsx statsy where
+getLinRegResult (LinRegState vx@(LMVSKState vx') vy s_xy) = LinRegResult slope intercept correl statsx statsy where
   n                               = lmvskCount vx'
   ndm1                            = fromIntegral (n-1)
   -- slope = S_xy / (x_stats.Variance()*(n - 1.0));
@@ -638,7 +642,7 @@ getLinRegResult (LinRegState vx@(LMVSKState vx') vy@(LMVSKState vy') s_xy) = Lin
   slope                           = s_xy / lmvskVariance vx'
   intercept                       = yMean - slope*xMean
   t                               = sqrt xVar * sqrt yVar -- stddev x * stddev y
-  correlation                     = s_xy / (ndm1 * t)
+  correl                          = s_xy / (ndm1 * t)
   -- Need unbiased variance or correlation may be > ±1
   statsx@(LMVSK _ xMean xVar _ _) = getLMVSKu vx
   statsy@(LMVSK _ yMean yVar _ _) = getLMVSKu vy
@@ -652,7 +656,7 @@ getLinRegResult (LinRegState vx@(LMVSKState vx') vy@(LMVSKState vy') s_xy) = Lin
 {-# INLINE foldLinRegState #-}
 foldLinRegState :: Fold (Double,Double) LinRegState
 foldLinRegState = Fold step (LinRegState (LMVSKState lmvsk0) (LMVSKState lmvsk0) 0) id where
-  step st@(LinRegState vx@(LMVSKState vx') vy@(LMVSKState vy') s_xy) (x,y) = LinRegState vx2 vy2 s_xy' where
+  step (LinRegState vx@(LMVSKState vx') vy s_xy) (x,y) = LinRegState vx2 vy2 s_xy' where
     n     = lmvskCount vx'
     nd    = fromIntegral n
     nd1   = fromIntegral (n+1)

@@ -6,7 +6,7 @@ import           Control.Monad.ST         (runST)
 import           Criterion.Main
 import qualified Data.Vector.Unboxed      as U
 import qualified Statistics.Sample        as S
-import           Statistics.Transform
+-- import           Statistics.Transform
 import           System.Random.MWC
 #if MIN_VERSION_foldl(1,2,2)
 import           Control.Foldl            as F hiding (mean, variance)
@@ -27,6 +27,7 @@ sample2 :: U.Vector (Double,Double)
 sample2 = runST $ flip uniformVector 10000 =<< create
 
 {-# NOINLINE absSample #-}
+absSample :: U.Vector Double
 absSample = U.map abs sample
 
 -- Weighted test sample
@@ -34,6 +35,7 @@ absSample = U.map abs sample
 sampleW :: U.Vector (Double,Double)
 sampleW = U.zip sample (U.reverse sample)
 
+m, mw :: Double
 m = F.fold mean (U.toList sample)
 
 mw = F.fold meanWeighted (U.toList sampleW)

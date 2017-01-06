@@ -14,9 +14,8 @@ import qualified Control.Foldl             as F
 import           Control.Foldl.Statistics  hiding (length)
 
 import qualified Data.Vector.Unboxed       as U
-import           Test.QuickCheck.Instances
+import           Test.QuickCheck.Instances ()
 
-import           Statistics.Function       (within)
 import qualified Statistics.Sample         as S
 
 import           Data.Profunctor
@@ -49,9 +48,10 @@ testLMVSK m = LMVSK
   <*> skewness m
   <*> kurtosis m
 
-
+precision :: Double
 precision = 0.0000000001
 
+cmpLMVSK :: Double -> LMVSK -> LMVSK -> Bool
 cmpLMVSK prec a b = let
   t f = on (withinPCT prec) f a b
   in t lmvskMean
