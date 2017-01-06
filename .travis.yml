@@ -75,7 +75,7 @@ matrix:
 
   allow_failures:
   - env: BUILD=cabal GHCVER=head  CABALVER=head
-  - env: BUILD=stack ARGS="--resolver nightly"
+  # - env: BUILD=stack ARGS="--resolver nightly"
 
   fast_finish: true
 
