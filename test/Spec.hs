@@ -1,23 +1,29 @@
+{-# LANGUAGE CPP #-}
 
-import Test.Tasty
+import           Test.Tasty
 -- import Test.Tasty.SmallCheck as SC
-import qualified Test.Tasty.QuickCheck as QC
-import           Test.Tasty.QuickCheck ((==>))
+import           Test.Tasty.QuickCheck     ((==>))
+import qualified Test.Tasty.QuickCheck     as QC
 
-import qualified Control.Foldl as F
-import Control.Foldl.Statistics hiding (length)
+#if MIN_VERSION_foldl(1,2,2)
+import qualified Control.Foldl             as F hiding (mean)
+#else
+import qualified Control.Foldl             as F
+#endif
 
-import qualified Data.Vector.Unboxed as U
-import Test.QuickCheck.Instances
+import           Control.Foldl.Statistics  hiding (length)
 
-import qualified Statistics.Sample as S
-import Statistics.Function (within)
+import qualified Data.Vector.Unboxed       as U
+import           Test.QuickCheck.Instances
 
-import Data.Profunctor
+import           Statistics.Function       (within)
+import qualified Statistics.Sample         as S
 
-import Data.Function (on)
+import           Data.Profunctor
 
-import Data.Semigroup ((<>))
+import           Data.Function             (on)
+
+import           Data.Semigroup            ((<>))
 
 
 toV :: [Double] -> U.Vector Double
@@ -76,6 +82,8 @@ main = defaultMain $
                 , onVec "fastStdDev" $ \vec ->
                     not (U.null vec) ==> F.fold fastStdDev (U.toList vec) == S.fastStdDev vec
                 , let
+                  -- TODO: Known failure when using
+                  -- --quickcheck-replay '39 TFGenR A6EB566E901D554AAA13826C088B8831192E813D893D082A85F8A27C86D569E0 0 65535 16 0'
                   in onVec ("fastLMVSK within " ++ show precision ++ " %") $ \vec ->
                     U.length vec > 2 ==> let
                       m         = F.fold mean $ U.toList vec
@@ -178,4 +186,4 @@ between (lo,hi) = \x -> lo <= x && x <= hi
 
 
 withinPCT :: Double -> Double -> Double -> Bool
-withinPCT pct a b = abs (a-b) * 100 / (min `on` abs) a b  < pct
+withinPCT pct a b = abs (a - b) * 100 / (min `on` abs) a b  < pct

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- |
 -- Module    : Control.Foldl.Statistics
 -- Copyright : (c) 2011 Bryan O'Sullivan, 2016 National ICT Australia
@@ -66,12 +67,17 @@ module Control.Foldl.Statistics (
 
     ) where
 
-import Control.Foldl as F
-import qualified Control.Foldl
-import Data.Profunctor
-import Data.Semigroup
+#if MIN_VERSION_foldl(1,2,2)
+import           Control.Foldl   as F hiding (mean)
+#else
+import           Control.Foldl   as F
+#endif
 
-import Numeric.Sum (KBNSum, kbn, add, zero)
+import qualified Control.Foldl
+import           Data.Profunctor
+import           Data.Semigroup
+
+import           Numeric.Sum     (KBNSum, add, kbn, zero)
 
 data T   = T   {-# UNPACK #-}!Double {-# UNPACK #-}!Int
 data TS  = TS  {-# UNPACK #-}!KBNSum {-# UNPACK #-}!Int
@@ -113,6 +119,9 @@ range = (\(Just lo) (Just hi) -> hi - lo)
 -- | Arithmetic mean.  This uses Kahan-Babuška-Neumaier
 -- summation, so is more accurate than 'welfordMean' unless the input
 -- values are very large.
+--
+-- Since foldl-1.2.2, 'Control.Foldl` exports a `mean` function, so you will
+-- have to hide one.
 {-# INLINE mean #-}
 mean :: Fold Double Double
 mean = Fold step (TS zero 0) final where
@@ -175,7 +184,7 @@ centralMoment a m
     | otherwise = Fold step (TS zero 0) final where
         step  (TS s n) x = TS (add s $ go x) (n+1)
         final (TS s n)   = kbn s / fromIntegral n
-        go x = (x-m) ^^^ a
+        go x = (x - m) ^^^ a
 
 -- | Compute the /k/th and /j/th central moments of a sample.
 --
@@ -656,7 +665,7 @@ foldLinRegState = Fold step (LinRegState (LMVSKState lmvsk0) (LMVSKState lmvsk0)
 --   returned by `fastLinearReg`
 correlation :: (Double, Double) -> (Double, Double) -> Fold (Double,Double) Double
 correlation (m1,m2) (s1,s2) = Fold step (TS zero 0) final where
-    step  (TS s n) (x1,x2) = TS (add s $ ((x1-m1)/s1) * ((x2-m2)/s2)) (n+1)
+    step  (TS s n) (x1,x2) = TS (add s $ ((x1 - m1)/s1) * ((x2 - m2)/s2)) (n+1)
     final (TS s n)         = kbn s / fromIntegral (n-1)
 
 

@@ -1,14 +1,20 @@
+{-# LANGUAGE CPP #-}
+
 module Main where
 
-import Control.Monad.ST (runST)
-import Criterion.Main
-import qualified Statistics.Sample as S
-import Statistics.Transform
-import System.Random.MWC
-import qualified Data.Vector.Unboxed as U
-import Control.Foldl as F
+import           Control.Monad.ST         (runST)
+import           Criterion.Main
+import qualified Data.Vector.Unboxed      as U
+import qualified Statistics.Sample        as S
+import           Statistics.Transform
+import           System.Random.MWC
+#if MIN_VERSION_foldl(1,2,2)
+import           Control.Foldl            as F hiding (mean)
+#else
+import           Control.Foldl            as F
+#endif
 
-import Control.Foldl.Statistics
+import           Control.Foldl.Statistics
 
 
 -- Test sample
