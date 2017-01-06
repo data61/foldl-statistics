@@ -1,4 +1,4 @@
-# foldl-statistics
+# foldl-statistics [![Build Status](https://travis-ci.org/data61/foldl-statistics.svg?branch=master)](https://travis-ci.org/data61/foldl-statistics)
 A reimplementation of the [Statistics.Sample](https://hackage.haskell.org/package/statistics/docs/Statistics-Sample.html)
 module using the [foldl](https://www.stackage.org/lts-5.1/package/foldl) package.
 The intention of this package is to allow these algorithms to be used on a much broader set of data input types,
