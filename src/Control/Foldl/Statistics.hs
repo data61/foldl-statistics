@@ -77,7 +77,7 @@ import qualified Control.Foldl
 import           Data.Profunctor
 import           Data.Semigroup
 
-#if !MIN_VERSION_base(4,7,0)
+#if !MIN_VERSION_base(4,8,0)
 import           Control.Applicative
 #endif
 
