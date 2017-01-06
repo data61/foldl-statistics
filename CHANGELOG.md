@@ -1,4 +1,7 @@
 # 0.1.4.0
+- foldl >= 1.2.2 exports `mean` and ` variance`, so hide them.
+
+# 0.1.4.0
 - Added monoidal interface to linear regression
 
 # 0.1.3.0

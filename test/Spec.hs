@@ -6,7 +6,7 @@ import           Test.Tasty.QuickCheck     ((==>))
 import qualified Test.Tasty.QuickCheck     as QC
 
 #if MIN_VERSION_foldl(1,2,2)
-import qualified Control.Foldl             as F hiding (mean)
+import qualified Control.Foldl             as F hiding (mean, variance)
 #else
 import qualified Control.Foldl             as F
 #endif
@@ -24,6 +24,10 @@ import           Data.Profunctor
 import           Data.Function             (on)
 
 import           Data.Semigroup            ((<>))
+#if !MIN_VERSION_base(4,7,0)
+import           Control.Applicative
+#endif
+
 
 
 toV :: [Double] -> U.Vector Double

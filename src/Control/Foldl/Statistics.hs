@@ -68,16 +68,20 @@ module Control.Foldl.Statistics (
     ) where
 
 #if MIN_VERSION_foldl(1,2,2)
-import           Control.Foldl   as F hiding (mean)
+import           Control.Foldl       as F hiding (mean, variance)
 #else
-import           Control.Foldl   as F
+import           Control.Foldl       as F
 #endif
 
 import qualified Control.Foldl
 import           Data.Profunctor
 import           Data.Semigroup
 
-import           Numeric.Sum     (KBNSum, add, kbn, zero)
+#if !MIN_VERSION_base(4,7,0)
+import           Control.Applicative
+#endif
+
+import           Numeric.Sum         (KBNSum, add, kbn, zero)
 
 data T   = T   {-# UNPACK #-}!Double {-# UNPACK #-}!Int
 data TS  = TS  {-# UNPACK #-}!KBNSum {-# UNPACK #-}!Int

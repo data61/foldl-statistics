@@ -9,7 +9,7 @@ import qualified Statistics.Sample        as S
 import           Statistics.Transform
 import           System.Random.MWC
 #if MIN_VERSION_foldl(1,2,2)
-import           Control.Foldl            as F hiding (mean)
+import           Control.Foldl            as F hiding (mean, variance)
 #else
 import           Control.Foldl            as F
 #endif
