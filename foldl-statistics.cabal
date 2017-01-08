@@ -42,7 +42,7 @@ test-suite foldl-statistics-test
                      , statistics           >= 0.13 && < 0.14
                      , tasty                >= 0.11 && < 0.12
                      , tasty-quickcheck     >= 0.8 && < 0.9
-                     , vector               >= 0.11 && < 0.12
+                     , vector               >= 0.11 && < 0.13
                      , quickcheck-instances >= 0.3 && < 0.4
                      , profunctors
                      , semigroups
