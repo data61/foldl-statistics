@@ -1,5 +1,5 @@
 name:                foldl-statistics
-version:             0.1.4.2
+version:             0.1.4.3
 synopsis:            Statistical functions from the statistics package implemented as
                      Folds.
 description:         The use of this package allows statistics to be computed using at most two
@@ -39,7 +39,7 @@ test-suite foldl-statistics-test
   build-depends:       base                 >= 4.7 && < 5.0
                      , foldl-statistics
                      , foldl
-                     , statistics           >= 0.13 && < 0.14
+                     , statistics           >= 0.13 && < 0.15
                      , tasty                >= 0.11 && < 0.12
                      , tasty-quickcheck     >= 0.8 && < 0.9
                      , vector               >= 0.11 && < 0.13

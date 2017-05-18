@@ -122,6 +122,7 @@ script:
       stack --no-terminal $ARGS test --flag 'aeson:fast' --haddock --no-haddock-deps --ghc-options="-O0 -Wall -fno-warn-unused-do-bind -Werror"
       ;;
     cabal)
+      cabal update
       cabal configure --enable-tests --enable-benchmarks -v2 -ffast --ghc-options="-O0 -Wall -fno-warn-unused-do-bind -Werror"
       cabal build -j
       cabal check

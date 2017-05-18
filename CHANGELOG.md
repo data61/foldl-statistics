@@ -1,3 +1,6 @@
+# 0.1.4.3
+- Update to statistics 0.14
+
 # 0.1.4.1
 - foldl >= 1.2.2 exports `mean` and ` variance`, so hide them.
 - export `lrrCount`
