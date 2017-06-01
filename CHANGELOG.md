@@ -1,3 +1,6 @@
+# 0.1.4.4
+- Update to foldl < 1.4
+
 # 0.1.4.3
 - Update to statistics 0.14
 
