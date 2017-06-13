@@ -1,3 +1,6 @@
+# 0.1.4.5
+- Fix dependencies for GHC < 8.0
+
 # 0.1.4.4
 - Update to foldl < 1.4
 
