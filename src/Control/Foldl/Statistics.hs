@@ -18,6 +18,7 @@ module Control.Foldl.Statistics (
     , sum'
     , histogram
     , histogram'
+    , ordersOfMagnitude
 
     -- * Statistics of location
     , mean
