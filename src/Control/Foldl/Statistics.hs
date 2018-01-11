@@ -1,10 +1,12 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE TypeApplications #-}
+
 -- |
 -- Module    : Control.Foldl.Statistics
--- Copyright : (c) 2011 Bryan O'Sullivan, 2016 National ICT Australia
+-- Copyright : (c) 2011 Bryan O'Sullivan, 2016 National ICT Australia, 2018 CSIRO
 -- License   : BSD3
 --
--- Maintainer  : alex.mason@nicta.com.au
+-- Maintainer  : Alex.Mason@data61.csiro.au
 -- Stability   : experimental
 -- Portability : portable
 --
@@ -15,6 +17,8 @@ module Control.Foldl.Statistics (
     -- * Descriptive functions
     range
     , sum'
+    , histogram
+    , histogram'
 
     -- * Statistics of location
     , mean
@@ -82,6 +86,10 @@ import           Data.Semigroup
 import           Control.Applicative
 #endif
 
+import           Data.Hashable       (Hashable)
+import qualified Data.HashMap.Strict as Hash
+import qualified Data.Map.Strict     as Map
+
 import           Numeric.Sum         (KBNSum, add, kbn, zero)
 
 data T   = T   {-# UNPACK #-}!Double {-# UNPACK #-}!Int
@@ -120,6 +128,37 @@ range :: Fold Double Double
 range = (\(Just lo) (Just hi) -> hi - lo)
         <$> F.minimum
         <*> F.maximum
+
+-- | Create a histogram of each value of type a. Useful for folding over
+-- categorical values, for example, a CSV where you have a data type for a
+-- selection of categories.
+--
+-- It should not be used for continuous values which would lead to a high number
+-- of keys. One way to avoid this is to use the `Profunctor` instance for `Fold`
+-- to break your values into categories. For an example of doing this, see
+-- `ordersOfMagnitude`.
+histogram :: Ord a => Fold a (Map.Map a Int)
+histogram = Fold step Map.empty id where
+  step m a = Map.insertWith (+) a 1 m
+
+-- | Like `histogram`, but for use when hashmaps would be more efficient for the
+-- particular type @a@.
+histogram' :: (Hashable a, Eq a) => Fold a (Hash.HashMap a Int)
+histogram' = Fold step Hash.empty id where
+  step m a = Hash.insertWith (+) a 1 m
+
+-- | Provides a histogram of the orders of magnitude of the values in a series.
+-- Negative values are placed in the @0.0@ category due to the behaviour of
+-- `logBase`. it may be useful to use @lmap abs@ on this Fold to get a histogram
+-- of the absolute magnitudes.
+
+-- TODO: logBase 10 1000000 /= 6 but 5, fix this
+ordersOfMagnitude :: Fold Double (Map.Map Double Int)
+ordersOfMagnitude =
+  dimap
+    (floor @_ @Int . logBase 10)
+    (Map.mapKeysMonotonic (10^^))
+    histogram
 
 -- | Arithmetic mean.  This uses Kahan-Babuška-Neumaier
 -- summation, so is more accurate than 'welfordMean' unless the input

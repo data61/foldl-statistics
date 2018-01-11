@@ -1,3 +1,6 @@
+# 0.1.5.0
+- Added `histogram`, `histogram'` and `ordersOfMagnitude`.
+
 # 0.1.4.6
 - Relax bounds on tasty-quickcheck
 
