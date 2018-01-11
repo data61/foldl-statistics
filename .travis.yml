@@ -13,11 +13,11 @@ before_cache:
   - rm -fv $HOME/.cabal/packages/hackage.haskell.org/00-index.tar
 
 matrix:
-  include:
+  allow_failures:
     - env: CABALVER=2.0 GHCVER=8.4.1
       compiler: ": #GHC 8.4.1 Cabal 2.0"
       addons: {apt: {packages: [cabal-install-2.0,ghc-8.4.1], sources: [hvr-ghc]}}
-      allow_failures: true
+  include:
     - env: CABALVER=2.0 GHCVER=8.2.2
       compiler: ": #GHC 8.2.2 Cabal 2.0"
       addons: {apt: {packages: [cabal-install-2.0,ghc-8.2.2], sources: [hvr-ghc]}}
