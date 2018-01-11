@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP              #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE CPP #-}
 
 -- |
 -- Module    : Control.Foldl.Statistics
@@ -156,7 +155,7 @@ histogram' = Fold step Hash.empty id where
 ordersOfMagnitude :: Fold Double (Map.Map Double Int)
 ordersOfMagnitude =
   dimap
-    (floor @_ @Int . logBase 10)
+    ((floor :: Double -> Int) . logBase 10)
     (Map.mapKeysMonotonic (10^^))
     histogram
 
