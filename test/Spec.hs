@@ -50,7 +50,7 @@ testLMVSK m = LMVSK
   <*> kurtosis m
 
 precision :: Double
-precision = 0.0000000001
+precision = 10e-9
 
 cmpLMVSK :: Double -> LMVSK -> LMVSK -> Bool
 cmpLMVSK prec a b = let
@@ -60,6 +60,16 @@ cmpLMVSK prec a b = let
      && t lmvskKurtosis
      && t lmvskSkewness
      && ((==) `on` lmvskCount) a b
+
+diffLMVSK :: LMVSK -> LMVSK -> LMVSK
+diffLMVSK a b = LMVSK
+    (t lmvskCount)
+    (t lmvskMean)
+    (t lmvskVariance)
+    (t lmvskSkewness)
+    (t lmvskKurtosis)
+    where t f = f a - f b
+
 
 main :: IO ()
 main = defaultMain $
@@ -94,7 +104,8 @@ main = defaultMain $
                       m         = F.fold mean $ U.toList vec
                       fast      = F.fold fastLMVSK $ U.toList vec
                       reference = F.fold (testLMVSK m) $ U.toList vec
-                      in cmpLMVSK precision fast reference
+                      in QC.counterexample (unlines ["",show fast,show reference, "Diff:", show (diffLMVSK fast reference)]) $
+                            cmpLMVSK precision fast reference
                 , QC.testProperty "LMVSKSemigroup" $ \v1 v2 ->
                     U.length v1 > 2 && U.length v2 > 2 && U.sum (mappend v1 v1) /= U.product (mappend v1 v1) ==> let
                       sep = getLMVSK $ F.fold foldLMVSKState (U.toList v1) <> F.fold foldLMVSKState (U.toList v2)
@@ -191,4 +202,4 @@ between (lo,hi) = \x -> lo <= x && x <= hi
 
 
 withinPCT :: Double -> Double -> Double -> Bool
-withinPCT pct a b = abs (a - b) * 100 / (min `on` abs) a b  < pct
+withinPCT pct a b = abs ((a - b) * 100 / (min `on` abs) a b)  < pct
