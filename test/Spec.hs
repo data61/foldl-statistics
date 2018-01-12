@@ -110,7 +110,8 @@ main = defaultMain $
                     U.length v1 > 2 && U.length v2 > 2 && U.sum (mappend v1 v1) /= U.product (mappend v1 v1) ==> let
                       sep = getLMVSK $ F.fold foldLMVSKState (U.toList v1) <> F.fold foldLMVSKState (U.toList v2)
                       tog = F.fold fastLMVSK (U.toList v1 ++ U.toList v2)
-                      in cmpLMVSK precision sep tog
+                      in QC.counterexample (unlines ["",show sep,show tog, "Diff:", show (diffLMVSK sep tog)])
+                        $ cmpLMVSK precision sep tog
                         || isNaN (lmvskKurtosis sep)
                         || isNaN (lmvskKurtosis tog)
                 ]
