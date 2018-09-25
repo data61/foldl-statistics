@@ -19,17 +19,17 @@ category:            Math, Statistics
 build-type:          Simple
 extra-source-files:  CHANGELOG.md, README.md
 cabal-version:       >=1.10
-tested-with:         GHC == 7.8.4, GHC == 7.10.2, GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.1
+tested-with:         GHC == 7.8.4, GHC == 7.10.2, GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.3, GHC == 8.6.1
 
 library
   hs-source-dirs:      src
   exposed-modules:     Control.Foldl.Statistics
   default-language:    Haskell2010
   build-depends:       base             >= 4.7 && < 5
-                       , foldl          >= 1.1 && < 1.4
-                       , math-functions >= 0.1 && < 0.3
-                       , profunctors    >= 5.2 && < 5.3
-                       , containers     >= 0.1.0.0 && < 0.6
+                       , foldl          >= 1.1 && < 1.5
+                       , math-functions >= 0.1 && < 0.4
+                       , profunctors    >= 5.2 && < 5.4
+                       , containers     >= 0.1.0.0 && < 0.7
                        , unordered-containers >= 0.1.0.0 && < 0.3
                        , hashable       >=1.0.1.1 && < 1.3
   if impl(ghc < 8.0)
@@ -46,7 +46,7 @@ test-suite foldl-statistics-test
                      , foldl-statistics
                      , foldl
                      , statistics           >= 0.13 && < 0.15
-                     , tasty                >= 0.11 && < 1.1
+                     , tasty                >= 0.11 && < 1.2
                      , tasty-quickcheck     >= 0.8 && < 0.11
                      , vector               >= 0.11 && < 0.13
                      , quickcheck-instances >= 0.3 && < 0.4
@@ -63,9 +63,9 @@ Benchmark bench-folds
                   , foldl-statistics
                   , foldl
                   , statistics      >= 0.13 && < 0.15
-                  , criterion       >= 1.1 && < 1.5
+                  , criterion       >= 1.1 && < 1.6
                   , vector          >= 0.10 && < 1.0
-                  , mwc-random      >= 0.13 && < 0.14
+                  , mwc-random      >= 0.13 && < 0.15
     if impl(ghc < 8.0)
       build-depends: semigroups
 
