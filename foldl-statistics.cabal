@@ -45,8 +45,8 @@ test-suite foldl-statistics-test
   build-depends:       base
                      , foldl-statistics
                      , foldl
-                     , statistics           >= 0.13 && < 0.15
-                     , tasty                >= 0.11 && < 1.2
+                     , statistics           >= 0.13 && < 0.16
+                     , tasty                >= 0.11 && < 1.3
                      , tasty-quickcheck     >= 0.8 && < 0.11
                      , vector               >= 0.11 && < 0.13
                      , quickcheck-instances >= 0.3 && < 0.4
@@ -62,7 +62,7 @@ Benchmark bench-folds
     build-depends: base
                   , foldl-statistics
                   , foldl
-                  , statistics      >= 0.13 && < 0.15
+                  , statistics      >= 0.13 && < 0.16
                   , criterion       >= 1.1 && < 1.6
                   , vector          >= 0.10 && < 1.0
                   , mwc-random      >= 0.13 && < 0.15
