@@ -20,11 +20,15 @@ import           Control.Foldl.Statistics
 -- Test sample
 {-# NOINLINE sample #-}
 sample :: U.Vector Double
-sample = runST $ flip uniformVector 10000 =<< create
+sample = runST $ do
+  g <-  create
+  U.replicateM 10000 (uniformRM (-10.0,10.0) g)
 
 {-# NOINLINE sample2 #-}
 sample2 :: U.Vector (Double,Double)
-sample2 = runST $ flip uniformVector 10000 =<< create
+sample2 = runST $  do
+  g <-  create
+  U.replicateM 10000 (liftA2 (,) (uniformRM (-10.0,10.0) g) (uniformRM (0.2,5.0) g))
 
 {-# NOINLINE absSample #-}
 absSample :: U.Vector Double
