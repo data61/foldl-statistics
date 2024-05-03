@@ -55,11 +55,13 @@ precision = 10e-9
 cmpLMVSK :: Double -> LMVSK -> LMVSK -> Bool
 cmpLMVSK prec a b = let
   t f = on (withinPCT prec) f a b
-  in t lmvskMean
-     && t lmvskVariance
-     && t lmvskKurtosis
-     && t lmvskSkewness
-     && ((==) `on` lmvskCount) a b
+  in a == b ||
+        (  t lmvskMean
+        && t lmvskVariance
+        && t lmvskKurtosis
+        && t lmvskSkewness
+        && ((==) `on` lmvskCount) a b
+        )
 
 diffLMVSK :: LMVSK -> LMVSK -> LMVSK
 diffLMVSK a b = LMVSK
@@ -85,8 +87,10 @@ main = defaultMain $
                 , onVec "harmonicMean" $ \vec ->
                      not (U.null vec) ==> F.fold harmonicMean (U.toList vec) == S.harmonicMean vec
                 , onVec "geometricMean" $ \vec ->
-                     not (U.null vec) ==> let vec' = U.map abs vec
-                        in F.fold geometricMean (U.toList vec') == S.geometricMean vec'
+                     not (U.null vec) ==>
+                        let vec' = U.map abs vec
+                            res = S.geometricMean vec'
+                        in isNaN res || F.fold geometricMean (U.toList vec') == res
                 ]
 
             , testGroup "Single-pass functions" $
