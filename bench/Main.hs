@@ -33,7 +33,7 @@ sample2 :: U.Vector (Double,Double)
 #if MIN_VERSION_mwc_random(0,15,0)
 sample2 = runST $  do
   g <-  create
-  U.replicateM 10000 (liftA2 (,) (uniformRM (-10.0,10.0) g) (uniformRM (0.2,5.0) g))
+  U.replicateM 10000 ((,) <$> (uniformRM (-10.0,10.0) g) <*> (uniformRM (0.2,5.0) g))
 #else
 sample2 = runST $ flip uniformVector 10000 =<< create
 #endif
