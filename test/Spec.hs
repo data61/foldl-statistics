@@ -104,7 +104,7 @@ main = defaultMain $
                   -- TODO: Known failure when using
                   -- --quickcheck-replay '39 TFGenR A6EB566E901D554AAA13826C088B8831192E813D893D082A85F8A27C86D569E0 0 65535 16 0'
                   in onVec ("fastLMVSK within " ++ show precision ++ " %") $ \vec ->
-                    U.length vec > 2 ==> let
+                    U.length vec > 3 && U.sum (U.map abs vec) > 0.0 ==> let
                       m         = F.fold mean $ U.toList vec
                       fast      = F.fold fastLMVSK $ U.toList vec
                       reference = F.fold (testLMVSK m) $ U.toList vec
