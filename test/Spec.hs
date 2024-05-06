@@ -207,4 +207,4 @@ between (lo,hi) = \x -> lo <= x && x <= hi
 
 
 withinPCT :: Double -> Double -> Double -> Bool
-withinPCT pct a b = abs ((a - b) * 100 / (min `on` abs) a b)  < pct
+withinPCT pct a b = abs ((a - b) * 100 / abs b)  < pct
