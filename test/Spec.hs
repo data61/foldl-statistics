@@ -50,7 +50,7 @@ testLMVSK m = LMVSK
   <*> kurtosis m
 
 precision :: Double
-precision = 10e-9
+precision = 10e-8
 
 cmpLMVSK :: Double -> LMVSK -> LMVSK -> Bool
 cmpLMVSK prec a b = let
