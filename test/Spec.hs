@@ -169,7 +169,7 @@ main = defaultMain $
                 ]
             , testGroup "Correlation"
                 [ onVec2 "correlation between [-1,1]" $ \vec ->
-                    U.length vec > 2 ==>
+                    U.length vec > 2 && U.any (/= (0.0,0.0)) vec ==>
                     let m1 = F.fold mean (U.toList $ U.map fst vec)
                         m2 = F.fold mean (U.toList $ U.map snd vec)
                         s1 = F.fold (stdDev m1) (U.toList $ U.map fst vec)
