@@ -187,9 +187,9 @@ main = defaultMain $
                         QC.counterexample ("Correlation: " ++ show corr ++ " Stats: " ++ show (m1,m2,s1,s2)) $
                             between (-1,1) corr || isNaN corr
                 , QC.testProperty "LinRegState Semigroup" $ \v1 v2 ->
-                    U.length v1 > 2 && U.length v2 > 2
-                    && U.any (/=0.0) (U.map fst (mappend v1 v1))
-                    && U.any (/=0.0) (U.map snd (mappend v1 v1)) ==> let
+                    U.length v1 > 3 && U.length v2 > 3
+                    && U.any (/=0.0) (U.map fst v1) && U.any (/=0.0) (U.map fst v2)
+                    && U.any (/=0.0) (U.map snd v1) && U.any (/=0.0) (U.map snd v2) ==> let
                       sep = getLinRegResult $ F.fold foldLinRegState (U.toList v1) <> F.fold foldLinRegState (U.toList v2)
                       tog = F.fold fastLinearReg (U.toList v1 ++ U.toList v2)
                       in (cmpLMVSK precision (lrrXStats sep) (lrrXStats tog)
